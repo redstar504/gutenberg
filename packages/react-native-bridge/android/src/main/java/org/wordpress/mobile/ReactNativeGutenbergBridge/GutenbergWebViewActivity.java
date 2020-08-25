@@ -3,6 +3,8 @@ package org.wordpress.mobile.ReactNativeGutenbergBridge;
 import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.os.Handler;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
@@ -10,6 +12,7 @@ import android.view.View;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -19,12 +22,19 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import org.wordpress.android.util.AppLog;
+import org.wordpress.android.util.StringUtils;
 import org.wordpress.android.util.helpers.WPWebChromeClient;
 import org.wordpress.mobile.FileUtils;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.util.Locale;
 
 public class GutenbergWebViewActivity extends AppCompatActivity {
+
+    public static final String ARG_USER_ID = "authenticated_user_id";
+
+    public static final String ENCODING_UTF8 = "UTF-8";
 
     public static final String ARG_BLOCK_ID = "block_id";
     public static final String ARG_BLOCK_NAME = "block_name";
@@ -36,7 +46,6 @@ public class GutenbergWebViewActivity extends AppCompatActivity {
     private static final String JAVA_SCRIPT_INTERFACE_NAME = "wpwebkit";
 
     protected WebView mWebView;
-    private View mForegroundView;
 
     @SuppressLint("SetJavaScriptEnabled")
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -46,7 +55,6 @@ public class GutenbergWebViewActivity extends AppCompatActivity {
         setupToolbar();
 
         mWebView = findViewById(R.id.gutenberg_web_view);
-        mForegroundView = findViewById(R.id.foreground_view);
 
         WebView.setWebContentsDebuggingEnabled(true);
 
@@ -160,12 +168,11 @@ public class GutenbergWebViewActivity extends AppCompatActivity {
                 if (isJetpackSsoEnabled()) {
                     if (!mIsJetpackSsoRedirected) {
                         mIsJetpackSsoRedirected = true;
-                        view.loadUrl(urlToLoad());
+                        mWebView.loadUrl(urlToLoad());
                         return true;
                     }
 
                     if (url.contains(urlToLoad())) {
-                        mForegroundView.setVisibility(View.VISIBLE);
                         mIsRedirected = true;
                     }
                 } else {
@@ -183,7 +190,7 @@ public class GutenbergWebViewActivity extends AppCompatActivity {
                 String injectCssScript = getFileContentFromAssets("gutenberg-web-single-block/inject-css.js");
                 evaluateJavaScript(injectCssScript);
 
-                long userId = getUserId();
+                long userId = getIntent().getExtras().getLong(ARG_USER_ID, 0);
                 if (userId != 0) {
                     String injectLocalStorageScript = getFileContentFromAssets("gutenberg-web-single-block/local-storage-overrides.json");
                     injectLocalStorageScript = removeWhiteSpace(removeNewLines(injectLocalStorageScript));
@@ -230,8 +237,7 @@ public class GutenbergWebViewActivity extends AppCompatActivity {
                     insertBlock = String.format(insertBlock, blockContent);
                     evaluateJavaScript(removeNewLines(insertBlock.replace("\\n", "\\\\n")));
 
-                    // We need some extra time to hide all unwanted html elements
-                    mForegroundView.postDelayed(() -> mForegroundView.setVisibility(View.INVISIBLE), 1000);
+                    view.setVisibility(View.VISIBLE);
                 }, 2000);
             }
 
@@ -259,13 +265,14 @@ public class GutenbergWebViewActivity extends AppCompatActivity {
         return "";
     }
 
-    protected long getUserId() {
-        return 0;
-    }
-
     @Override
     public void finish() {
         runOnUiThread(() -> {
+            WebStorage.getInstance().deleteAllData();
+
+            CookieManager.getInstance().removeAllCookies(null);
+            CookieManager.getInstance().flush();
+
             mWebView.removeJavascriptInterface(JAVA_SCRIPT_INTERFACE_NAME);
             mWebView.clearHistory();
             mWebView.clearFormData();
