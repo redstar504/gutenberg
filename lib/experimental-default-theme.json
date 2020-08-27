@@ -73,6 +73,33 @@
 					"value": 48
 				}
 			],
+			"font-family": [
+				{
+					"value": "-apple-system,BlinkMacSystemFont,\"Segoe UI\",Roboto,Oxygen-Sans,Ubuntu,Cantarell,\"Helvetica Neue\",sans-serif",
+					"slug": "system",
+					"name": "System"
+				},
+				{
+					"value": "Helvetica Neue, Helvetica, Arial, sans-serif",
+					"slug": "helvetica-arial"
+				},
+				{
+					"value": "Geneva, Tahoma, Verdana, sans-serif",
+					"slug": "geneva-verdana"
+				},
+				{
+					"value": "Cambria, Georgia, serif",
+					"slug": "cambria-georgia"
+				},
+				{
+					"value": "Hoefler Text, Baskerville Old Face, Garamond, Times New Roman, serif",
+					"slug": "hoefler-times-new-roman"
+				},
+				{
+					"value": "Consolas, monaco, monospace",
+					"slug": "consolas"
+				}
+			],
 			"gradient": [
 				{
 					"slug": "blush-bordeaux",
