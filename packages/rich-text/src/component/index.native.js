@@ -54,6 +54,8 @@ const gutenbergFormatNamesToAztec = {
 	'core/strikethrough': 'strikethrough',
 };
 
+const EMPTY_PARAGRAPH_TAGS = '<p></p>';
+
 export class RichText extends Component {
 	constructor( {
 		value,
@@ -75,7 +77,8 @@ export class RichText extends Component {
 
 		this.isIOS = Platform.OS === 'ios';
 		this.createRecord = this.createRecord.bind( this );
-		this.onChange = this.onChange.bind( this );
+		this.restoreParagraphTags = this.restoreParagraphTags.bind( this );
+		this.onChangeFromAztec = this.onChangeFromAztec.bind( this );
 		this.onKeyDown = this.onKeyDown.bind( this );
 		this.handleEnter = this.handleEnter.bind( this );
 		this.handleDelete = this.handleDelete.bind( this );
@@ -259,7 +262,7 @@ export class RichText extends Component {
 	/*
 	 * Handles any case where the content of the AztecRN instance has changed
 	 */
-	onChange( event ) {
+	onChangeFromAztec( event ) {
 		const contentWithoutRootTag = this.removeRootTagsProduceByAztec(
 			unescapeSpaces( event.nativeEvent.text )
 		);
@@ -278,14 +281,29 @@ export class RichText extends Component {
 		const contentWithoutRootTag = this.removeRootTagsProduceByAztec(
 			unescapeSpaces( event.nativeEvent.text )
 		);
+		let formattedContent = contentWithoutRootTag;
+		if ( ! this.isIOS ) {
+			formattedContent = this.restoreParagraphTags(
+				contentWithoutRootTag,
+				this.multilineTag
+			);
+		}
+
 		this.debounceCreateUndoLevel();
-		const refresh = this.value !== contentWithoutRootTag;
-		this.value = contentWithoutRootTag;
+		const refresh = this.value !== formattedContent;
+		this.value = formattedContent;
 
 		// we don't want to refresh if our goal is just to create a record
 		if ( refresh ) {
-			this.props.onChange( contentWithoutRootTag );
+			this.props.onChange( formattedContent );
 		}
+	}
+
+	restoreParagraphTags( value, tag ) {
+		if ( tag === 'p' && ( ! value || ! value.startsWith( '<p>' ) ) ) {
+			return '<p>' + value + '</p>';
+		}
+		return value;
 	}
 
 	/*
@@ -703,8 +721,11 @@ export class RichText extends Component {
 			value = '';
 		}
 		// On android if content is empty we need to send no content or else the placeholder will not show.
-		if ( ! this.isIOS && value === '' ) {
-			return value;
+		if (
+			! this.isIOS &&
+			( value === '' || value === EMPTY_PARAGRAPH_TAGS )
+		) {
+			return '';
 		}
 
 		if ( tagName ) {
@@ -843,7 +864,7 @@ export class RichText extends Component {
 						defaultPlaceholderTextColor
 					}
 					deleteEnter={ this.props.deleteEnter }
-					onChange={ this.onChange }
+					onChange={ this.onChangeFromAztec }
 					onFocus={ this.onFocus }
 					onBlur={ this.onBlur }
 					onKeyDown={ this.onKeyDown }
